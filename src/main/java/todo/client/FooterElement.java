@@ -9,9 +9,11 @@ import static todo.client.Main.i18n;
 import elemental2.dom.HTMLElement;
 import org.jboss.gwt.elemento.core.IsElement;
 
-class FooterElement implements IsElement {
-    @Override public HTMLElement asElement() {
-        return footer().css("info")
+public class FooterElement implements IsElement {
+    private final HTMLElement element;
+
+    public FooterElement() {
+        this.element = footer().css("info")
                 .add(p().textContent(i18n.double_click_to_edit()))
                 .add(p().add(span().textContent(i18n.created_by() + " "))
                         .add(a("https://github.com/ibaca").textContent("Ignacio Baca")))
@@ -19,4 +21,6 @@ class FooterElement implements IsElement {
                         .add(a("http://todomvc.com").textContent("TodoMVC")))
                 .asElement();
     }
+
+    @Override public HTMLElement asElement() { return element; }
 }

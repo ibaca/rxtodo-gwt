@@ -1,9 +1,16 @@
 package todo.client;
 
+import static org.jboss.gwt.elemento.core.Elements.a;
 import static org.jboss.gwt.elemento.core.Elements.button;
+import static org.jboss.gwt.elemento.core.Elements.footer;
 import static org.jboss.gwt.elemento.core.Elements.h;
+import static org.jboss.gwt.elemento.core.Elements.header;
 import static org.jboss.gwt.elemento.core.Elements.input;
+import static org.jboss.gwt.elemento.core.Elements.label;
 import static org.jboss.gwt.elemento.core.Elements.li;
+import static org.jboss.gwt.elemento.core.Elements.section;
+import static org.jboss.gwt.elemento.core.Elements.span;
+import static org.jboss.gwt.elemento.core.Elements.ul;
 import static org.jboss.gwt.elemento.core.EventType.change;
 import static org.jboss.gwt.elemento.core.EventType.click;
 import static org.jboss.gwt.elemento.core.EventType.keydown;
@@ -15,15 +22,18 @@ import static todo.client.Main.Filter.COMPLETED;
 import static todo.client.Main.i18n;
 import static todo.client.Main.msg;
 
-import elemental2.dom.Event;
 import elemental2.dom.HTMLButtonElement;
 import elemental2.dom.HTMLElement;
 import elemental2.dom.HTMLInputElement;
-import elemental2.dom.KeyboardEvent;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 import org.jboss.gwt.elemento.core.Elements;
 import org.jboss.gwt.elemento.core.EventType;
 import org.jboss.gwt.elemento.core.IsElement;
 import todo.client.Main.Filter;
+import todo.client.Main.Repository;
+import todo.client.Main.TodoItem;
 
 class ApplicationElement implements IsElement {
     private final HTMLElement root;
@@ -38,55 +48,79 @@ class ApplicationElement implements IsElement {
     private final HTMLElement filterCompleted;
     private final HTMLButtonElement clearCompleted;
 
-    private final Main.Repository repository;
-    private Filter filter;
-
-    static HTMLElement filter(Filter f, String text) {
-        return li().add(h("a").attr("href", f.fragment()).textContent(text)).asElement();
-    }
-
-    ApplicationElement(Main.Repository repository) {
-        this.repository = repository;
-
-        this.root = h("section").css("todoapp")
-                .add(h("header").css("header")
-                        .add(h("h1").textContent(i18n.todos()))
+    ApplicationElement(Repository repository) {
+        this.root = section().css("todoapp")
+                .add(header().css("header")
+                        .add(h(1).textContent(i18n.todos()))
                         .add(newTodo = input(text).css("new-todo").apply(el -> {
                             el.placeholder = i18n.new_todo();
                             el.autofocus = true;
                         }).asElement()))
-                .add(main = h("section").css("main")
-                        .add(toggleAll = input(checkbox).css("toggle-all").id("toggle-all").asElement())
-                        .add(h("label").attr("for", "toggle-all").textContent(i18n.complete_all()))
-                        .add(list = h("ul").css("todo-list").asElement())
+                .add(main = section().css("main")
+                        .add(toggleAll = input(checkbox).css("toggle-all").id().asElement())
+                        .add(label().apply(el -> el.htmlFor = toggleAll.id).textContent(i18n.complete_all()))
+                        .add(list = ul().css("todo-list").asElement())
                         .asElement())
-                .add(footer = h("footer").css("footer")
-                        .add(count = h("span").css("todo-count").innerHtml(msg.items(0)).asElement())
-                        .add(h("ul").css("filters")
+                .add(footer = footer().css("footer")
+                        .add(count = span().css("todo-count").innerHtml(msg.items(0)).asElement())
+                        .add(ul().css("filters")
                                 .add(filterAll = filter(ALL, i18n.filter_all()))
                                 .add(filterActive = filter(ACTIVE, i18n.filter_active()))
                                 .add(filterCompleted = filter(COMPLETED, i18n.filter_completed())))
-                        .add(clearCompleted = h(button)
+                        .add(clearCompleted = button()
                                 .css("clear-completed")
                                 .textContent(i18n.clear_completed())
                                 .asElement())
                         .asElement())
                 .asElement();
 
-        EventType.bind(newTodo, keydown, this::newTodo);
-        EventType.bind(toggleAll, change, event -> toggleAll());
-        EventType.bind(clearCompleted, click, event -> clearCompleted());
+        EventType.bind(newTodo, keydown, ev -> {
+            if ("Enter".equals(ev.key)) {
+                String text = newTodo.value.trim();
+                if (text.length() != 0) {
+                    TodoItem item = repository.add(text);
+                    list.appendChild(new TodoItemElement(this, repository, item).asElement());
+                    newTodo.value = "";
+                    update();
+                }
+            }
+        });
 
-        reset();
-        repository.onExternalModification(this::reset);
+        EventType.bind(toggleAll, change, event -> {
+            for (HTMLElement li : Elements.children(list)) {
+                li.classList.toggle("completed", toggleAll.checked);
+                HTMLInputElement checkbox1 = (HTMLInputElement) li.firstElementChild.firstElementChild;
+                checkbox1.checked = toggleAll.checked;
+            }
+            repository.completeAll(toggleAll.checked);
+            update();
+        });
+
+        EventType.bind(clearCompleted, click, event -> {
+            Set<String> ids = new HashSet<>();
+            for (Iterator<HTMLElement> iterator = Elements.iterator(list); iterator.hasNext(); ) {
+                HTMLElement li = iterator.next();
+                if (li.classList.contains("completed")) {
+                    String id = String.valueOf(li.dataset.get("item"));
+                    if (id != null) ids.add(id);
+                    iterator.remove();
+                }
+            }
+            repository.removeAll(ids);
+            update();
+        });
+
+        repository.onExternalModification().startWith(repository).subscribe(n -> {
+            Elements.removeChildrenFrom(list);
+            for (TodoItem item : repository.items()) {
+                list.appendChild(new TodoItemElement(this, repository, item).asElement());
+            }
+            update();
+        });
     }
 
-    private void reset() {
-        Elements.removeChildrenFrom(list);
-        for (Main.TodoItem item : repository.items()) {
-            list.appendChild(new TodoItemElement(this, repository, item).asElement());
-        }
-        update();
+    static HTMLElement filter(Filter f, String text) {
+        return li().add(a().attr("href", f.fragment()).textContent(text)).asElement();
     }
 
     @Override
@@ -94,41 +128,48 @@ class ApplicationElement implements IsElement {
         return root;
     }
 
-    // ------------------------------------------------------ event / token handler
+    private Filter filter;
 
-    private void newTodo(Event event) {
-        KeyboardEvent keyboardEvent = (KeyboardEvent) event;
-        if ("Enter".equals(keyboardEvent.key)) {
-            String text = newTodo.value.trim();
-            if (text.length() != 0) {
-                Main.TodoItem item = repository.add(text);
-                list.appendChild(new TodoItemElement(this, repository, item).asElement());
-                newTodo.value = "";
-                update();
-            }
+    void filter(final Filter filter) {
+        this.filter = filter;
+        switch (this.filter) {
+            case ALL:
+                filterAll.classList.add("selected");
+                filterActive.classList.remove("selected");
+                filterCompleted.classList.remove("selected");
+                break;
+            case ACTIVE:
+                filterAll.classList.remove("selected");
+                filterActive.classList.add("selected");
+                filterCompleted.classList.remove("selected");
+                break;
+            case COMPLETED:
+                filterAll.classList.remove("selected");
+                filterActive.classList.remove("selected");
+                filterCompleted.classList.add("selected");
+                break;
         }
-    }
-
-    private void toggleAll() {
-        Main.toggleAll(list, toggleAll.checked);
-        repository.completeAll(toggleAll.checked);
         update();
     }
-
-    private void clearCompleted() {
-        repository.removeAll(Main.getCompleted(list));
-        update();
-    }
-
-    void filter(String token) {
-        filter = Filter.parseToken(token);
-        Main.filter(filter, filterAll, filterActive, filterCompleted);
-        update();
-    }
-
-    // ------------------------------------------------------ state update
 
     void update() {
-        Main.update(filter, list, main, footer, toggleAll, count, clearCompleted);
+        int activeCount = 0;
+        int completedCount = 0;
+        int size = (int) list.childElementCount;
+
+        Elements.setVisible(main, size > 0);
+        Elements.setVisible(footer, size > 0);
+        for (HTMLElement li : Elements.children(list)) {
+            if (li.classList.contains("completed")) {
+                completedCount++;
+                Elements.setVisible(li, filter != ACTIVE);
+            } else {
+                Elements.setVisible(li, filter != COMPLETED);
+                activeCount++;
+            }
+        }
+        toggleAll.checked = (size == completedCount);
+        Elements.innerHtml(count, msg.items(activeCount));
+        Elements.setVisible(clearCompleted, completedCount != 0);
     }
 }

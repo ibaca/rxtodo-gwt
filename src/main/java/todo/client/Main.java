@@ -1,33 +1,36 @@
 package todo.client;
 
 import static elemental2.dom.DomGlobal.document;
+import static elemental2.dom.DomGlobal.window;
+import static org.jboss.gwt.elemento.core.Elements.a;
+import static org.jboss.gwt.elemento.core.Elements.body;
+import static org.jboss.gwt.elemento.core.Elements.footer;
+import static org.jboss.gwt.elemento.core.Elements.p;
+import static org.jboss.gwt.elemento.core.Elements.span;
 
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.i18n.client.Constants;
 import com.google.gwt.i18n.client.Messages;
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.user.client.History;
+import com.intendia.rxgwt.elemento.RxElemento;
 import elemental2.core.Global;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.HTMLElement;
-import elemental2.dom.HTMLInputElement;
 import elemental2.webstorage.Storage;
-import elemental2.webstorage.StorageEvent;
 import elemental2.webstorage.WebStorageWindow;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import jsinterop.annotations.JsPackage;
 import jsinterop.annotations.JsType;
 import jsinterop.base.Js;
 import jsinterop.base.JsPropertyMap;
-import org.jboss.gwt.elemento.core.Elements;
+import org.jboss.gwt.elemento.core.EventType;
+import rx.Observable;
 
 public class Main implements EntryPoint {
     public static final TodoConstants i18n = GWT.create(TodoConstants.class);
@@ -50,84 +53,16 @@ public class Main implements EntryPoint {
         }
         return new String(uuid);
     }
-    public static void toggleAll(HTMLElement list, boolean checked) {
-        for (HTMLElement li : Elements.children(list)) {
-            if (checked) {
-                li.classList.add("completed");
-            } else {
-                li.classList.remove("completed");
-            }
-            HTMLInputElement checkbox = (HTMLInputElement) li.firstElementChild.firstElementChild;
-            checkbox.checked = checked;
-        }
-    }
-    public static Set<String> getCompleted(HTMLElement list) {
-        Set<String> ids = new HashSet<>();
-        for (Iterator<HTMLElement> iterator = Elements.iterator(list); iterator.hasNext(); ) {
-            HTMLElement li = iterator.next();
-            if (li.classList.contains("completed")) {
-                String id = String.valueOf(li.dataset.get("item"));
-                if (id != null) {
-                    ids.add(id);
-                }
-                iterator.remove();
-            }
-        }
-        return ids;
-    }
-    public static void filter(Filter filter, HTMLElement filterAll, HTMLElement filterActive,
-            HTMLElement filterCompleted) {
-        switch (filter) {
-            case ALL:
-                filterAll.classList.add("selected");
-                filterActive.classList.remove("selected");
-                filterCompleted.classList.remove("selected");
-                break;
-            case ACTIVE:
-                filterAll.classList.remove("selected");
-                filterActive.classList.add("selected");
-                filterCompleted.classList.remove("selected");
-                break;
-            case COMPLETED:
-                filterAll.classList.remove("selected");
-                filterActive.classList.remove("selected");
-                filterCompleted.classList.add("selected");
-                break;
-        }
-    }
-
-    public static void update(Filter filter, HTMLElement list, HTMLElement main, HTMLElement footer,
-            HTMLInputElement toggleAll, HTMLElement count, HTMLElement clearCompleted) {
-
-        int activeCount = 0;
-        int completedCount = 0;
-        int size = (int) list.childElementCount;
-
-        Elements.setVisible(main, size > 0);
-        Elements.setVisible(footer, size > 0);
-        for (HTMLElement li : Elements.children(list)) {
-            if (li.classList.contains("completed")) {
-                completedCount++;
-                Elements.setVisible(li, filter != Filter.ACTIVE);
-            } else {
-                Elements.setVisible(li, filter != Filter.COMPLETED);
-                activeCount++;
-            }
-        }
-        toggleAll.checked = (size == completedCount);
-        Elements.innerHtml(count, msg.items(activeCount));
-        Elements.setVisible(clearCompleted, completedCount != 0);
-    }
 
     @Override
     public void onModuleLoad() {
         Repository repository = new Repository();
         ApplicationElement application = new ApplicationElement(repository);
+        FooterElement footer = new FooterElement();
 
-        document.body.appendChild(application.asElement());
-        document.body.appendChild(new FooterElement().asElement());
+        body().add(application).add(footer);
 
-        History.addValueChangeHandler(event -> application.filter(event.getValue()));
+        History.addValueChangeHandler(event -> application.filter(Filter.parseToken(event.getValue())));
         History.fireCurrentHistoryState();
     }
 
@@ -153,7 +88,9 @@ public class Main implements EntryPoint {
     public static class Repository {
         private static final String DEFAULT_KEY = "todos-elemento";
         private final Storage storage = WebStorageWindow.of(DomGlobal.window).localStorage;
-        private JsPropertyMap<TodoItem> items = Js.cast(JsPropertyMap.of());
+        private final JsPropertyMap<TodoItem> items = Optional.ofNullable(storage.getItem(DEFAULT_KEY))
+                .map(json -> Js.<JsPropertyMap<TodoItem>>cast(Global.JSON.parse(json)))
+                .orElse(Js.cast(JsPropertyMap.of()));
 
         public TodoItem add(String text) {
             TodoItem item = new TodoItem();
@@ -166,37 +103,40 @@ public class Main implements EntryPoint {
             return item;
         }
 
-        public void completeAll(boolean completed) { for (TodoItem i : items()) { i.completed = completed; } save(); }
+        public void completeAll(boolean completed) {
+            for (TodoItem i : items()) { i.completed = completed; } save();
+        }
 
-        public void complete(TodoItem item, boolean completed) { items.get(item.id).completed = completed; save(); }
+        public void complete(TodoItem item, boolean completed) {
+            items.get(item.id).completed = completed; save();
+        }
 
-        public void rename(TodoItem item, String text) { items.get(item.id).text = text; save(); }
+        public void rename(TodoItem item, String text) {
+            items.get(item.id).text = text; save();
+        }
+
+        public void remove(TodoItem item) {
+            items.delete(item.id); save();
+        }
+
+        public void removeAll(Set<String> ids) {
+            for (String id : ids) items.delete(id); save();
+        }
+
+        private void save() {
+            storage.setItem(DEFAULT_KEY, Global.JSON.stringify(items));
+        }
 
         public Collection<TodoItem> items() {
-            List<TodoItem> items = new ArrayList<>();
-            this.items.forEach(i -> items.add(this.items.get(i)));
-            return items;
+            List<TodoItem> copy = new ArrayList<>();
+            items.forEach(i -> copy.add(items.get(i)));
+            return copy;
         }
 
-        public void remove(TodoItem item) { items.delete(item.id); save(); }
-
-        public void removeAll(Set<String> ids) { for (String id : ids) { items.delete(id); } save(); }
-
-        public void onExternalModification(Scheduler.ScheduledCommand command) {
-            WebStorageWindow.of(DomGlobal.window).addEventListener("storage", event -> {
-                StorageEvent storageEvent = (StorageEvent) event;
-                if (DEFAULT_KEY.equals(storageEvent.key)) {
-                    Scheduler.get().scheduleDeferred(command);
-                }
-            }, false);
+        public Observable<Repository> onExternalModification() {
+            return RxElemento.fromEvent(window, EventType.storage)
+                    .filter(ev -> DEFAULT_KEY.equals(ev.key)).map(ev -> this);
         }
-
-        private Map<String, TodoItem> load() {
-            String json = storage.getItem(DEFAULT_KEY);
-            return json != null ? Js.cast(Global.JSON.parse(json)) : Js.cast(JsPropertyMap.of());
-        }
-
-        private void save() { storage.setItem(DEFAULT_KEY, Global.JSON.stringify(items)); }
     }
 
     @JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
@@ -220,4 +160,5 @@ public class Main implements EntryPoint {
             }
         }
     }
+
 }
