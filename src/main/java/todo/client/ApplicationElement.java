@@ -31,6 +31,7 @@ import java.util.Set;
 import org.jboss.gwt.elemento.core.Elements;
 import org.jboss.gwt.elemento.core.EventType;
 import org.jboss.gwt.elemento.core.IsElement;
+import org.jboss.gwt.elemento.core.Key;
 import todo.client.Main.Filter;
 import todo.client.Main.Repository;
 import todo.client.Main.TodoItem;
@@ -75,7 +76,7 @@ class ApplicationElement implements IsElement {
                 .asElement();
 
         EventType.bind(newTodo, keydown, ev -> {
-            if ("Enter".equals(ev.key)) {
+            if (Key.Enter.match(ev)) {
                 String text = newTodo.value.trim();
                 if (text.length() != 0) {
                     TodoItem item = repository.add(text);

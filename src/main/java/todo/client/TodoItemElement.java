@@ -18,6 +18,7 @@ import elemental2.dom.HTMLButtonElement;
 import elemental2.dom.HTMLElement;
 import elemental2.dom.HTMLInputElement;
 import org.jboss.gwt.elemento.core.IsElement;
+import org.jboss.gwt.elemento.core.Key;
 
 class TodoItemElement implements IsElement {
     private final HTMLElement container;
@@ -69,11 +70,11 @@ class TodoItemElement implements IsElement {
                 }
             }
         };
-        bind(summary, keydown, event -> {
-            if ("Escape".equals(event.code)) {
+        bind(summary, keydown, ev -> {
+            if (Key.Escape.match(ev)) {
                 escape = true;
                 container.classList.remove("editing");
-            } else if ("Enter".equals(event.key)) {
+            } else if (Key.Enter.match(ev)) {
                 doBlur.run();
             }
         });
