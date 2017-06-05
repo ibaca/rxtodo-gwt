@@ -50,7 +50,7 @@ class ApplicationElement implements IsElement {
     private final HTMLButtonElement clearCompleted;
 
     ApplicationElement(Repository repository) {
-        this.root = section().css("todoapp")
+        root = section().css("todoapp")
                 .add(header().css("header")
                         .add(h(1).textContent(i18n.todos()))
                         .add(newTodo = input(text).css("new-todo").apply(el -> {
@@ -90,8 +90,7 @@ class ApplicationElement implements IsElement {
         EventType.bind(toggleAll, change, event -> {
             for (HTMLElement li : Elements.children(list)) {
                 li.classList.toggle("completed", toggleAll.checked);
-                HTMLInputElement checkbox1 = (HTMLInputElement) li.firstElementChild.firstElementChild;
-                checkbox1.checked = toggleAll.checked;
+                ((HTMLInputElement) li.firstElementChild.firstElementChild).checked = toggleAll.checked;
             }
             repository.completeAll(toggleAll.checked);
             update();
@@ -102,7 +101,7 @@ class ApplicationElement implements IsElement {
             for (Iterator<HTMLElement> iterator = Elements.iterator(list); iterator.hasNext(); ) {
                 HTMLElement li = iterator.next();
                 if (li.classList.contains("completed")) {
-                    String id = String.valueOf(li.dataset.get("item"));
+                    String id = String.valueOf(li.dataset.get(TodoItemElement.ITEM));
                     if (id != null) ids.add(id);
                     iterator.remove();
                 }
@@ -121,7 +120,7 @@ class ApplicationElement implements IsElement {
     }
 
     static HTMLElement filter(Filter f, String text) {
-        return li().add(a().attr("href", f.fragment()).textContent(text)).asElement();
+        return li().add(a(f.fragment()).textContent(text)).asElement();
     }
 
     @Override
@@ -131,25 +130,11 @@ class ApplicationElement implements IsElement {
 
     private Filter filter;
 
-    void filter(final Filter filter) {
+    void filter(Filter filter) {
         this.filter = filter;
-        switch (this.filter) {
-            case ALL:
-                filterAll.classList.add("selected");
-                filterActive.classList.remove("selected");
-                filterCompleted.classList.remove("selected");
-                break;
-            case ACTIVE:
-                filterAll.classList.remove("selected");
-                filterActive.classList.add("selected");
-                filterCompleted.classList.remove("selected");
-                break;
-            case COMPLETED:
-                filterAll.classList.remove("selected");
-                filterActive.classList.remove("selected");
-                filterCompleted.classList.add("selected");
-                break;
-        }
+        filterAll.classList.toggle("selected", filter == ALL);
+        filterActive.classList.toggle("selected", filter == ACTIVE);
+        filterCompleted.classList.toggle("selected", filter == COMPLETED);
         update();
     }
 

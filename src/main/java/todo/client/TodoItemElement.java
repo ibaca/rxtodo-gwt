@@ -19,9 +19,12 @@ import elemental2.dom.HTMLElement;
 import elemental2.dom.HTMLInputElement;
 import org.jboss.gwt.elemento.core.IsElement;
 import org.jboss.gwt.elemento.core.Key;
+import todo.client.Main.Repository;
+import todo.client.Main.TodoItem;
 
 class TodoItemElement implements IsElement {
-    private final HTMLElement container;
+    public static final String ITEM = "item";
+    private final HTMLElement root;
     private final HTMLInputElement toggle;
     private final HTMLElement msg;
     private final HTMLButtonElement destroy;
@@ -29,41 +32,39 @@ class TodoItemElement implements IsElement {
 
     private boolean escape;
 
-    TodoItemElement(ApplicationElement application, Main.Repository repository, Main.TodoItem item) {
-        this.container = li().data("item", item.id)
+    TodoItemElement(ApplicationElement application, Repository repository, TodoItem item) {
+        root = li().data(ITEM, item.id).css("completed", item.completed)
                 .add(div().css("view")
-                        .add(toggle = input(checkbox).css("toggle").asElement())
+                        .add(toggle = input(checkbox).css("toggle").checked(item.completed).asElement())
                         .add(msg = label().textContent(item.text).asElement())
                         .add(destroy = button().css("destroy").asElement()))
                 .add(summary = input(text).css("edit").asElement())
                 .asElement();
-        this.container.classList.toggle("completed", item.completed);
-        this.toggle.checked = item.completed;
 
         bind(toggle, change, ev -> {
-            container.classList.toggle("completed", toggle.checked);
+            root.classList.toggle("completed", toggle.checked);
             repository.complete(item, toggle.checked);
             application.update();
         });
         bind(msg, dblclick, ev -> {
             escape = false;
-            container.classList.add("editing");
+            root.classList.add("editing");
             summary.value = msg.textContent;
             summary.focus();
         });
         bind(destroy, click, ev -> {
-            container.parentNode.removeChild(container);
+            root.parentNode.removeChild(root);
             repository.remove(item);
             application.update();
         });
         Runnable doBlur = () -> {
             String value = summary.value.trim();
             if (value.length() == 0) {
-                container.parentNode.removeChild(container);
+                root.parentNode.removeChild(root);
                 repository.remove(item);
                 application.update();
             } else {
-                container.classList.remove("editing");
+                root.classList.remove("editing");
                 if (!escape) {
                     msg.textContent = value;
                     repository.rename(item, value);
@@ -73,7 +74,7 @@ class TodoItemElement implements IsElement {
         bind(summary, keydown, ev -> {
             if (Key.Escape.match(ev)) {
                 escape = true;
-                container.classList.remove("editing");
+                root.classList.remove("editing");
             } else if (Key.Enter.match(ev)) {
                 doBlur.run();
             }
@@ -83,6 +84,6 @@ class TodoItemElement implements IsElement {
 
     @Override
     public HTMLElement asElement() {
-        return container;
+        return root;
     }
 }

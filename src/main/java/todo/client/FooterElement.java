@@ -10,10 +10,10 @@ import elemental2.dom.HTMLElement;
 import org.jboss.gwt.elemento.core.IsElement;
 
 public class FooterElement implements IsElement {
-    private final HTMLElement element;
+    private final HTMLElement root;
 
     public FooterElement() {
-        this.element = footer().css("info")
+        root = footer().css("info")
                 .add(p().textContent(i18n.double_click_to_edit()))
                 .add(p().add(span().textContent(i18n.created_by() + " "))
                         .add(a("https://github.com/ibaca").textContent("Ignacio Baca")))
@@ -22,5 +22,5 @@ public class FooterElement implements IsElement {
                 .asElement();
     }
 
-    @Override public HTMLElement asElement() { return element; }
+    @Override public HTMLElement asElement() { return root; }
 }
