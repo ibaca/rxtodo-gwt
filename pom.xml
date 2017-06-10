@@ -92,6 +92,7 @@
                     <devmodeArgs><!-- @formatter:off -->
                         <arg>-bindAddress</arg><arg>0.0.0.0</arg>
                         <arg>-style</arg><arg>PRETTY</arg>
+                        <arg>-generateJsInteropExports</arg>
                     </devmodeArgs><!-- @formatter:on -->
                     <startupUrls>
                         <url>/todo/</url>

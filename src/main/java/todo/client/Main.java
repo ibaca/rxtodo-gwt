@@ -1,17 +1,17 @@
 package todo.client;
 
+import static elemental2.dom.DomGlobal.customElements;
 import static elemental2.dom.DomGlobal.document;
 import static elemental2.dom.DomGlobal.window;
-import static org.jboss.gwt.elemento.core.Elements.a;
 import static org.jboss.gwt.elemento.core.Elements.body;
-import static org.jboss.gwt.elemento.core.Elements.footer;
-import static org.jboss.gwt.elemento.core.Elements.p;
-import static org.jboss.gwt.elemento.core.Elements.span;
 
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.core.client.ScriptInjector;
 import com.google.gwt.i18n.client.Constants;
 import com.google.gwt.i18n.client.Messages;
+import com.google.gwt.resources.client.ClientBundle;
+import com.google.gwt.resources.client.TextResource;
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.user.client.History;
 import com.intendia.rxgwt.elemento.RxElemento;
@@ -25,9 +25,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import jsinterop.annotations.JsMethod;
 import jsinterop.annotations.JsPackage;
 import jsinterop.annotations.JsType;
 import jsinterop.base.Js;
+import jsinterop.base.JsConstructorFn;
 import jsinterop.base.JsPropertyMap;
 import org.jboss.gwt.elemento.core.EventType;
 import rx.Observable;
@@ -54,17 +56,33 @@ public class Main implements EntryPoint {
         return new String(uuid);
     }
 
+    public interface Resources extends ClientBundle {
+        Resources INSTANCE = GWT.create(Resources.class);
+        @Source("native-shim.js")
+        TextResource nativeShim();
+    }
+
     @Override
     public void onModuleLoad() {
+        ScriptInjector.fromString(Resources.INSTANCE.nativeShim().getText())
+                .setRemoveTag(true).setWindow(Js.cast(window)).inject();
+
+        customElements.define("my-footer", Js.uncheckedCast(JsConstructorFn.of(FooterElement.class)));
+        HTMLElement footer = Js.cast(document.createElement("my-footer"));
+        GWT.log("footer instanceof FooterElement: " + (footer instanceof FooterElement));
+        GWT.log("footer instanceof HTMLElement: " + (footer instanceof HTMLElement));
+
         Repository repository = new Repository();
         ApplicationElement application = new ApplicationElement(repository);
-        FooterElement footer = new FooterElement();
 
         body().add(application).add(footer);
 
         History.addValueChangeHandler(event -> application.filter(Filter.parseToken(event.getValue())));
         History.fireCurrentHistoryState();
     }
+
+    @JsMethod(namespace = JsPackage.GLOBAL)
+    public static native void defineCustomElementInBabel(String name, Object legacyConstructor);
 
     public interface TodoConstants extends Constants {
         @DefaultStringValue("Clear completed") String clear_completed();
