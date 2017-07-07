@@ -1,12 +1,6 @@
 package todo.client;
 
-import static elemental2.dom.DomGlobal.document;
 import static elemental2.dom.DomGlobal.window;
-import static org.jboss.gwt.elemento.core.Elements.a;
-import static org.jboss.gwt.elemento.core.Elements.body;
-import static org.jboss.gwt.elemento.core.Elements.footer;
-import static org.jboss.gwt.elemento.core.Elements.p;
-import static org.jboss.gwt.elemento.core.Elements.span;
 
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
@@ -14,10 +8,10 @@ import com.google.gwt.i18n.client.Constants;
 import com.google.gwt.i18n.client.Messages;
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.user.client.History;
+import com.google.gwt.user.client.ui.RootPanel;
 import com.intendia.rxgwt.elemento.RxElemento;
 import elemental2.core.Global;
 import elemental2.dom.DomGlobal;
-import elemental2.dom.HTMLElement;
 import elemental2.webstorage.Storage;
 import elemental2.webstorage.WebStorageWindow;
 import java.util.ArrayList;
@@ -36,31 +30,15 @@ public class Main implements EntryPoint {
     public static final TodoConstants i18n = GWT.create(TodoConstants.class);
     public static final TodoMessages msg = GWT.create(TodoMessages.class);
 
-    public static final char[] CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".toCharArray();
-    /** Generate a RFC4122, version 4 ID. Example: "92329D39-6F5C-4520-ABFC-AAB64544E172" */
-    public static String uuid() {
-        char[] uuid = new char[36];
-
-        // rfc4122 requires these characters
-        uuid[8] = uuid[13] = uuid[18] = uuid[23] = '-'; uuid[14] = '4';
-
-        // Fill in random data.  At i==19 set the high bits of clock sequence as per rfc4122, sec. 4.1.5
-        for (int i = 0, r; i < 36; i++) {
-            if (uuid[i] == 0) {
-                r = (int) (Math.random() * 16);
-                uuid[i] = CHARS[(i == 19) ? (r & 0x3) | 0x8 : r & 0xf];
-            }
-        }
-        return new String(uuid);
-    }
-
     @Override
     public void onModuleLoad() {
         Repository repository = new Repository();
-        ApplicationElement application = new ApplicationElement(repository);
-        FooterElement footer = new FooterElement();
 
-        body().add(application).add(footer);
+        ApplicationElement application = new ApplicationElement(repository);
+        RootPanel.get().add(application);
+
+        FooterElement footer = new FooterElement();
+        RootPanel.get().add(footer);
 
         History.addValueChangeHandler(event -> application.filter(Filter.parseToken(event.getValue())));
         History.fireCurrentHistoryState();
@@ -161,4 +139,21 @@ public class Main implements EntryPoint {
         }
     }
 
+    public static final char[] CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".toCharArray();
+    /** Generate a RFC4122, version 4 ID. Example: "92329D39-6F5C-4520-ABFC-AAB64544E172" */
+    public static String uuid() {
+        char[] uuid = new char[36];
+
+        // rfc4122 requires these characters
+        uuid[8] = uuid[13] = uuid[18] = uuid[23] = '-'; uuid[14] = '4';
+
+        // Fill in random data.  At i==19 set the high bits of clock sequence as per rfc4122, sec. 4.1.5
+        for (int i = 0, r; i < 36; i++) {
+            if (uuid[i] == 0) {
+                r = (int) (Math.random() * 16);
+                uuid[i] = CHARS[(i == 19) ? (r & 0x3) | 0x8 : r & 0xf];
+            }
+        }
+        return new String(uuid);
+    }
 }

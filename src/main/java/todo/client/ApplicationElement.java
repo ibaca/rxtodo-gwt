@@ -25,23 +25,23 @@ import static todo.client.Main.msg;
 import elemental2.dom.HTMLButtonElement;
 import elemental2.dom.HTMLElement;
 import elemental2.dom.HTMLInputElement;
+import elemental2.dom.HTMLUListElement;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
+import org.jboss.gwt.elemento.core.widgets.ElementoHtmlPanel;
+import org.jboss.gwt.elemento.core.widgets.ElementoListPanel;
 import org.jboss.gwt.elemento.core.Elements;
 import org.jboss.gwt.elemento.core.EventType;
-import org.jboss.gwt.elemento.core.IsElement;
 import org.jboss.gwt.elemento.core.Key;
 import todo.client.Main.Filter;
 import todo.client.Main.Repository;
 import todo.client.Main.TodoItem;
 
-class ApplicationElement implements IsElement {
-    private final HTMLElement root;
+class ApplicationElement extends ElementoHtmlPanel<HTMLElement> {
     private final HTMLInputElement newTodo;
     private final HTMLElement main;
     private final HTMLInputElement toggleAll;
-    private final HTMLElement list;
+    private final ElementoListPanel<HTMLUListElement, TodoItemElement> list;
     private final HTMLElement footer;
     private final HTMLElement count;
     private final HTMLElement filterAll;
@@ -50,37 +50,36 @@ class ApplicationElement implements IsElement {
     private final HTMLButtonElement clearCompleted;
 
     ApplicationElement(Repository repository) {
-        root = section().css("todoapp")
-                .add(header().css("header")
-                        .add(h(1).textContent(i18n.todos()))
-                        .add(newTodo = input(text).css("new-todo").apply(el -> {
-                            el.placeholder = i18n.new_todo();
-                            el.autofocus = true;
-                        }).asElement()))
-                .add(main = section().css("main")
-                        .add(toggleAll = input(checkbox).css("toggle-all").id().asElement())
-                        .add(label().apply(el -> el.htmlFor = toggleAll.id).textContent(i18n.complete_all()))
-                        .add(list = ul().css("todo-list").asElement())
+        super(section().css("todoapp").asElement());
+        add(header().css("header")
+                .add(h(1).textContent(i18n.todos()))
+                .add(newTodo = input(text).css("new-todo").apply(el -> {
+                    el.placeholder = i18n.new_todo();
+                    el.autofocus = true;
+                }).asElement()));
+        add(main = section().css("main")
+                .add(toggleAll = input(checkbox).css("toggle-all").id().asElement())
+                .add(label().apply(el -> el.htmlFor = toggleAll.id).textContent(i18n.complete_all()))
+                .add(list = ElementoListPanel.of(ul().css("todo-list")), this)
+                .asElement());
+        add(footer = footer().css("footer")
+                .add(count = span().css("todo-count").innerHtml(msg.items(0)).asElement())
+                .add(ul().css("filters")
+                        .add(filterAll = filter(ALL, i18n.filter_all()))
+                        .add(filterActive = filter(ACTIVE, i18n.filter_active()))
+                        .add(filterCompleted = filter(COMPLETED, i18n.filter_completed())))
+                .add(clearCompleted = button()
+                        .css("clear-completed")
+                        .textContent(i18n.clear_completed())
                         .asElement())
-                .add(footer = footer().css("footer")
-                        .add(count = span().css("todo-count").innerHtml(msg.items(0)).asElement())
-                        .add(ul().css("filters")
-                                .add(filterAll = filter(ALL, i18n.filter_all()))
-                                .add(filterActive = filter(ACTIVE, i18n.filter_active()))
-                                .add(filterCompleted = filter(COMPLETED, i18n.filter_completed())))
-                        .add(clearCompleted = button()
-                                .css("clear-completed")
-                                .textContent(i18n.clear_completed())
-                                .asElement())
-                        .asElement())
-                .asElement();
+                .asElement());
 
         EventType.bind(newTodo, keydown, ev -> {
             if (Key.Enter.match(ev)) {
                 String text = newTodo.value.trim();
                 if (text.length() != 0) {
                     TodoItem item = repository.add(text);
-                    list.appendChild(new TodoItemElement(this, repository, item).asElement());
+                    list.add(new TodoItemElement(this, repository, item));
                     newTodo.value = "";
                     update();
                 }
@@ -88,9 +87,9 @@ class ApplicationElement implements IsElement {
         });
 
         EventType.bind(toggleAll, change, event -> {
-            for (HTMLElement li : Elements.children(list)) {
-                li.classList.toggle("completed", toggleAll.checked);
-                ((HTMLInputElement) li.firstElementChild.firstElementChild).checked = toggleAll.checked;
+            for (TodoItemElement li : list.children()) {
+                li.asElement().classList.toggle("completed", toggleAll.checked);
+                li.toggle.checked = toggleAll.checked;
             }
             repository.completeAll(toggleAll.checked);
             update();
@@ -98,12 +97,11 @@ class ApplicationElement implements IsElement {
 
         EventType.bind(clearCompleted, click, event -> {
             Set<String> ids = new HashSet<>();
-            for (Iterator<HTMLElement> iterator = Elements.iterator(list); iterator.hasNext(); ) {
-                HTMLElement li = iterator.next();
-                if (li.classList.contains("completed")) {
-                    String id = String.valueOf(li.dataset.get(TodoItemElement.ITEM));
+            for (TodoItemElement li : list.children()) {
+                if (li.asElement().classList.contains("completed")) {
+                    String id = String.valueOf(li.asElement().dataset.get(TodoItemElement.ITEM));
                     if (id != null) ids.add(id);
-                    iterator.remove();
+                    li.removeFromParent();
                 }
             }
             repository.removeAll(ids);
@@ -111,21 +109,12 @@ class ApplicationElement implements IsElement {
         });
 
         repository.onExternalModification().startWith(repository).subscribe(n -> {
-            Elements.removeChildrenFrom(list);
+            list.clear();
             for (TodoItem item : repository.items()) {
-                list.appendChild(new TodoItemElement(this, repository, item).asElement());
+                list.add(new TodoItemElement(this, repository, item));
             }
             update();
         });
-    }
-
-    static HTMLElement filter(Filter f, String text) {
-        return li().add(a(f.fragment()).textContent(text)).asElement();
-    }
-
-    @Override
-    public HTMLElement asElement() {
-        return root;
     }
 
     private Filter filter;
@@ -141,21 +130,25 @@ class ApplicationElement implements IsElement {
     void update() {
         int activeCount = 0;
         int completedCount = 0;
-        int size = (int) list.childElementCount;
+        int size = list.size();
 
         Elements.setVisible(main, size > 0);
         Elements.setVisible(footer, size > 0);
-        for (HTMLElement li : Elements.children(list)) {
-            if (li.classList.contains("completed")) {
+        for (TodoItemElement li : list.children()) {
+            if (li.asElement().classList.contains("completed")) {
                 completedCount++;
-                Elements.setVisible(li, filter != ACTIVE);
+                li.setVisible(filter != ACTIVE);
             } else {
-                Elements.setVisible(li, filter != COMPLETED);
+                li.setVisible(filter != COMPLETED);
                 activeCount++;
             }
         }
         toggleAll.checked = (size == completedCount);
         Elements.innerHtml(count, msg.items(activeCount));
         Elements.setVisible(clearCompleted, completedCount != 0);
+    }
+
+    static HTMLElement filter(Filter f, String text) {
+        return li().add(a(f.fragment()).textContent(text)).asElement();
     }
 }
