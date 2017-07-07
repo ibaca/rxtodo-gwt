@@ -83,16 +83,16 @@
             <plugin>
                 <groupId>net.ltgt.gwt.maven</groupId>
                 <artifactId>gwt-maven-plugin</artifactId>
-                <version>1.0-rc-7</version>
+                <version>1.0-rc-8</version>
                 <extensions>true</extensions>
                 <configuration>
                     <moduleName>todo.Todo</moduleName>
                     <skipModule>true</skipModule>
                     <failOnError>true</failOnError>
-                    <devmodeArgs>
-                        <arg>-bindAddress</arg>
-                        <arg>0.0.0.0</arg>
-                    </devmodeArgs>
+                    <devmodeArgs><!-- @formatter:off -->
+                        <arg>-bindAddress</arg><arg>0.0.0.0</arg>
+                        <arg>-style</arg><arg>PRETTY</arg>
+                    </devmodeArgs><!-- @formatter:on -->
                     <startupUrls>
                         <url>/todo/</url>
                     </startupUrls>
@@ -120,7 +120,7 @@
     <repositories>
         <repository>
             <id>sonatype-snapshots-repo</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
             <releases>
                 <enabled>false</enabled>
             </releases>
