@@ -28,8 +28,6 @@ import elemental2.dom.HTMLInputElement;
 import elemental2.dom.HTMLUListElement;
 import java.util.HashSet;
 import java.util.Set;
-import org.jboss.gwt.elemento.core.widgets.ElementoHtmlPanel;
-import org.jboss.gwt.elemento.core.widgets.ElementoListPanel;
 import org.jboss.gwt.elemento.core.Elements;
 import org.jboss.gwt.elemento.core.EventType;
 import org.jboss.gwt.elemento.core.Key;
@@ -60,7 +58,7 @@ class ApplicationElement extends ElementoHtmlPanel<HTMLElement> {
         add(main = section().css("main")
                 .add(toggleAll = input(checkbox).css("toggle-all").id().asElement())
                 .add(label().apply(el -> el.htmlFor = toggleAll.id).textContent(i18n.complete_all()))
-                .add(list = ElementoListPanel.of(ul().css("todo-list")), this)
+                .apply(addWidget(list = ElementoListPanel.of(ul().css("todo-list"))))
                 .asElement());
         add(footer = footer().css("footer")
                 .add(count = span().css("todo-count").innerHtml(msg.items(0)).asElement())

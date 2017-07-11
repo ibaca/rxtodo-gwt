@@ -19,7 +19,6 @@ import elemental2.dom.HTMLElement;
 import elemental2.dom.HTMLInputElement;
 import elemental2.dom.HTMLLIElement;
 import org.jboss.gwt.elemento.core.Key;
-import org.jboss.gwt.elemento.core.widgets.ElementoHtmlPanel;
 import todo.client.Main.Repository;
 import todo.client.Main.TodoItem;
 

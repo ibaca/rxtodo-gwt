@@ -44,7 +44,7 @@
         <dependency>
             <groupId>org.jboss.gwt.elemento</groupId>
             <artifactId>elemento-core</artifactId>
-            <version>0.4.2</version>
+            <version>0.5.0</version>
         </dependency>
         <dependency>
             <groupId>com.intendia.gwt.rxgwt</groupId>
@@ -115,7 +115,6 @@
             </plugin>
         </plugins>
     </build>
-
 
     <repositories>
         <repository>
