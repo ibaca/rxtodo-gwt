@@ -9,7 +9,7 @@ import com.google.gwt.i18n.client.Messages;
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.ui.RootPanel;
-import com.intendia.rxgwt.elemento.RxElemento;
+import com.google.web.bindery.event.shared.HandlerRegistration;
 import elemental2.core.Global;
 import elemental2.dom.DomGlobal;
 import elemental2.webstorage.Storage;
@@ -19,12 +19,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import jsinterop.annotations.JsPackage;
 import jsinterop.annotations.JsType;
 import jsinterop.base.Js;
 import jsinterop.base.JsPropertyMap;
 import org.jboss.gwt.elemento.core.EventType;
-import rx.Observable;
 
 public class Main implements EntryPoint {
     public static final TodoConstants i18n = GWT.create(TodoConstants.class);
@@ -111,9 +111,10 @@ public class Main implements EntryPoint {
             return copy;
         }
 
-        public Observable<Repository> onExternalModification() {
-            return RxElemento.fromEvent(window, EventType.storage)
-                    .filter(ev -> DEFAULT_KEY.equals(ev.key)).map(ev -> this);
+        public HandlerRegistration onExternalModification(Consumer<Repository> fn) {
+            return EventType.bind(window, EventType.storage, ev -> {
+                if (DEFAULT_KEY.equals(ev.key)) fn.accept(this);
+            });
         }
     }
 

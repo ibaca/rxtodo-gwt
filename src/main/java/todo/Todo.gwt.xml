@@ -4,7 +4,6 @@
     <inherits name="com.google.gwt.user.User"/>
     <inherits name="com.google.gwt.i18n.I18N"/>
     <inherits name="com.google.gwt.user.UI"/>
-    <inherits name="com.intendia.rxgwt.RxElemento"/>
     <inherits name="elemental2.dom.Dom"/>
     <inherits name="elemental2.media.Media"/>
     <inherits name="elemental2.webstorage.WebStorage"/>

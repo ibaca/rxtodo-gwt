@@ -28,6 +28,7 @@ import elemental2.dom.HTMLInputElement;
 import elemental2.dom.HTMLUListElement;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Consumer;
 import org.jboss.gwt.elemento.core.Elements;
 import org.jboss.gwt.elemento.core.EventType;
 import org.jboss.gwt.elemento.core.Key;
@@ -106,13 +107,15 @@ class ApplicationElement extends ElementoHtmlPanel<HTMLElement> {
             update();
         });
 
-        repository.onExternalModification().startWith(repository).subscribe(n -> {
+        Consumer<Repository> onChange = n -> {
             list.clear();
             for (TodoItem item : repository.items()) {
                 list.add(new TodoItemElement(this, repository, item));
             }
             update();
-        });
+        };
+        repository.onExternalModification(onChange);
+        onChange.accept(repository);
     }
 
     private Filter filter;
