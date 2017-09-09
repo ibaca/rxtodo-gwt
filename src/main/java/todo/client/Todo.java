@@ -1,7 +1,5 @@
 package todo.client;
 
-import static elemental2.dom.DomGlobal.window;
-
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.i18n.client.Constants;
@@ -9,39 +7,42 @@ import com.google.gwt.i18n.client.Messages;
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.ui.RootPanel;
-import com.intendia.rxgwt.elemento.RxElemento;
-import elemental2.core.Global;
 import elemental2.dom.DomGlobal;
-import elemental2.webstorage.Storage;
-import elemental2.webstorage.WebStorageWindow;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import elemental2.dom.EventTarget;
+import java.util.function.Consumer;
+import jsinterop.annotations.JsOverlay;
 import jsinterop.annotations.JsPackage;
 import jsinterop.annotations.JsType;
-import jsinterop.base.Js;
-import jsinterop.base.JsPropertyMap;
-import org.jboss.gwt.elemento.core.EventType;
-import rx.Observable;
+import todo.client.ui.ApplicationWidget;
+import todo.client.ui.FooterWidget;
+import todo.elemento.CustomEventType;
 
-public class Main implements EntryPoint {
+public class Todo implements EntryPoint {
     public static final TodoConstants i18n = GWT.create(TodoConstants.class);
     public static final TodoMessages msg = GWT.create(TodoMessages.class);
+
+    //@formatter:off Application events
+    public static final CustomEventType<EventTarget, Consumer<Repository>> action = new CustomEventType<>("todo.action");
+    //@formatter:on
 
     @Override
     public void onModuleLoad() {
         Repository repository = new Repository();
 
-        ApplicationElement application = new ApplicationElement(repository);
+        ApplicationWidget application = new ApplicationWidget();
         RootPanel.get().add(application);
 
-        FooterElement footer = new FooterElement();
+        FooterWidget footer = new FooterWidget();
         RootPanel.get().add(footer);
 
-        History.addValueChangeHandler(event -> application.filter(Filter.parseToken(event.getValue())));
+        repository.changes().subscribe(n -> application.draw(repository));
+        History.addValueChangeHandler(ev -> application.filter(Filter.parseToken(ev.getValue())));
         History.fireCurrentHistoryState();
+
+        CustomEventType.bindDetail(DomGlobal.document, action, ev -> {
+            GWT.log("processing action…");
+            ev.accept(repository);
+        });
     }
 
     public interface TodoConstants extends Constants {
@@ -63,65 +64,14 @@ public class Main implements EntryPoint {
         SafeHtml items(@PluralCount int items);
     }
 
-    public static class Repository {
-        private static final String DEFAULT_KEY = "todos-elemento";
-        private final Storage storage = WebStorageWindow.of(DomGlobal.window).localStorage;
-        private final JsPropertyMap<TodoItem> items = Optional.ofNullable(storage.getItem(DEFAULT_KEY))
-                .map(json -> Js.<JsPropertyMap<TodoItem>>cast(Global.JSON.parse(json)))
-                .orElse(Js.cast(JsPropertyMap.of()));
-
-        public TodoItem add(String text) {
-            TodoItem item = new TodoItem();
-            item.id = uuid();
-            item.text = text;
-            item.completed = false;
-            items.set(item.id, item);
-
-            save();
-            return item;
-        }
-
-        public void completeAll(boolean completed) {
-            for (TodoItem i : items()) { i.completed = completed; } save();
-        }
-
-        public void complete(TodoItem item, boolean completed) {
-            items.get(item.id).completed = completed; save();
-        }
-
-        public void rename(TodoItem item, String text) {
-            items.get(item.id).text = text; save();
-        }
-
-        public void remove(TodoItem item) {
-            items.delete(item.id); save();
-        }
-
-        public void removeAll(Set<String> ids) {
-            for (String id : ids) items.delete(id); save();
-        }
-
-        private void save() {
-            storage.setItem(DEFAULT_KEY, Global.JSON.stringify(items));
-        }
-
-        public Collection<TodoItem> items() {
-            List<TodoItem> copy = new ArrayList<>();
-            items.forEach(i -> copy.add(items.get(i)));
-            return copy;
-        }
-
-        public Observable<Repository> onExternalModification() {
-            return RxElemento.fromEvent(window, EventType.storage)
-                    .filter(ev -> DEFAULT_KEY.equals(ev.key)).map(ev -> this);
-        }
-    }
-
     @JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
     public static class TodoItem {
         public String id;
         public String text;
         public boolean completed;
+        public static @JsOverlay TodoItem create(String text) {
+            TodoItem i = new TodoItem(); i.id = uuid(); i.text = text; i.completed = false; return i;
+        }
     }
 
     public enum Filter {
@@ -139,7 +89,7 @@ public class Main implements EntryPoint {
         }
     }
 
-    public static final char[] CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".toCharArray();
+    public static final String CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     /** Generate a RFC4122, version 4 ID. Example: "92329D39-6F5C-4520-ABFC-AAB64544E172" */
     public static String uuid() {
         char[] uuid = new char[36];
@@ -151,7 +101,7 @@ public class Main implements EntryPoint {
         for (int i = 0, r; i < 36; i++) {
             if (uuid[i] == 0) {
                 r = (int) (Math.random() * 16);
-                uuid[i] = CHARS[(i == 19) ? (r & 0x3) | 0x8 : r & 0xf];
+                uuid[i] = CHARS.charAt((i == 19) ? (r & 0x3) | 0x8 : r & 0xf);
             }
         }
         return new String(uuid);

@@ -1,4 +1,4 @@
-package todo.client;
+package todo.elemento;
 
 import com.google.gwt.user.client.ui.IsWidget;
 import com.google.gwt.user.client.ui.Widget;

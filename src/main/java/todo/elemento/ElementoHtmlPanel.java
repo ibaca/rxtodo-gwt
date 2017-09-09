@@ -1,4 +1,4 @@
-package todo.client;
+package todo.elemento;
 
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.user.client.ui.ComplexPanel;
@@ -19,7 +19,7 @@ public class ElementoHtmlPanel<E extends HTMLElement> extends ComplexPanel {
         setElement(Js.<Element>cast(elem));
     }
 
-    public E asElement() { return Js.cast(getElement()); }
+    public E root() { return Js.cast(getElement()); }
 
     protected void add(IsElement element) { add(Js.<Node>cast(element.asElement())); }
 

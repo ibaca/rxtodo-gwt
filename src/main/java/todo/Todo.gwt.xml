@@ -5,9 +5,12 @@
     <inherits name="com.google.gwt.i18n.I18N"/>
     <inherits name="com.google.gwt.user.UI"/>
     <inherits name="com.intendia.rxgwt.RxElemento"/>
+    <inherits name="com.intendia.rxgwt.RxUser"/>
     <inherits name="elemental2.dom.Dom"/>
     <inherits name="elemental2.media.Media"/>
     <inherits name="elemental2.webstorage.WebStorage"/>
     <inherits name="org.jboss.gwt.elemento.Core"/>
-    <entry-point class="todo.client.Main"/>
+    <entry-point class="todo.client.Todo"/>
+    <source path="client"/>
+    <source path="elemento"/>
 </module>

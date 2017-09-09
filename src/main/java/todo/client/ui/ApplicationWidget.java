@@ -1,5 +1,7 @@
-package todo.client;
+package todo.client.ui;
 
+import static com.intendia.rxgwt.elemento.RxElemento.fromEvent;
+import static java.util.stream.Collectors.toSet;
 import static org.jboss.gwt.elemento.core.Elements.a;
 import static org.jboss.gwt.elemento.core.Elements.button;
 import static org.jboss.gwt.elemento.core.Elements.footer;
@@ -16,38 +18,39 @@ import static org.jboss.gwt.elemento.core.EventType.click;
 import static org.jboss.gwt.elemento.core.EventType.keydown;
 import static org.jboss.gwt.elemento.core.InputType.checkbox;
 import static org.jboss.gwt.elemento.core.InputType.text;
-import static todo.client.Main.Filter.ACTIVE;
-import static todo.client.Main.Filter.ALL;
-import static todo.client.Main.Filter.COMPLETED;
-import static todo.client.Main.i18n;
-import static todo.client.Main.msg;
+import static org.jboss.gwt.elemento.core.Key.Enter;
+import static todo.elemento.CustomEventType.dispatchCustomEvent;
+import static todo.client.Todo.action;
+import static todo.client.Todo.Filter.ACTIVE;
+import static todo.client.Todo.Filter.ALL;
+import static todo.client.Todo.Filter.COMPLETED;
+import static todo.client.Todo.i18n;
+import static todo.client.Todo.msg;
 
+import com.intendia.rxgwt.user.RxWidget;
 import elemental2.dom.HTMLButtonElement;
 import elemental2.dom.HTMLElement;
 import elemental2.dom.HTMLInputElement;
 import elemental2.dom.HTMLUListElement;
-import java.util.HashSet;
-import java.util.Set;
 import org.jboss.gwt.elemento.core.Elements;
-import org.jboss.gwt.elemento.core.EventType;
-import org.jboss.gwt.elemento.core.Key;
-import todo.client.Main.Filter;
-import todo.client.Main.Repository;
-import todo.client.Main.TodoItem;
+import todo.client.Todo.Filter;
+import todo.client.Repository;
+import todo.elemento.ElementoHtmlPanel;
+import todo.elemento.ElementoListPanel;
 
-class ApplicationElement extends ElementoHtmlPanel<HTMLElement> {
-    private final HTMLInputElement newTodo;
+public class ApplicationWidget extends ElementoHtmlPanel<HTMLElement> {
+    final HTMLInputElement newTodo;
     private final HTMLElement main;
-    private final HTMLInputElement toggleAll;
-    private final ElementoListPanel<HTMLUListElement, TodoItemElement> list;
+    final HTMLInputElement toggleAll;
+    private final ElementoListPanel<HTMLUListElement, TodoItemWidget> list;
     private final HTMLElement footer;
     private final HTMLElement count;
     private final HTMLElement filterAll;
     private final HTMLElement filterActive;
     private final HTMLElement filterCompleted;
-    private final HTMLButtonElement clearCompleted;
+    final HTMLButtonElement clearCompleted;
 
-    ApplicationElement(Repository repository) {
+    public ApplicationWidget() {
         super(section().css("todoapp").asElement());
         add(header().css("header")
                 .add(h(1).textContent(i18n.todos()))
@@ -72,52 +75,34 @@ class ApplicationElement extends ElementoHtmlPanel<HTMLElement> {
                         .asElement())
                 .asElement());
 
-        EventType.bind(newTodo, keydown, ev -> {
-            if (Key.Enter.match(ev)) {
-                String text = newTodo.value.trim();
-                if (text.length() != 0) {
-                    TodoItem item = repository.add(text);
-                    list.add(new TodoItemElement(this, repository, item));
-                    newTodo.value = "";
-                    update();
-                }
-            }
-        });
+        RxWidget rx = new RxWidget(this); // <-- this handle un/subscription on attach, and re-subscribe on failures
+        rx.registerAttachObservable(fromEvent(newTodo, keydown).filter(Enter::match).doOnNext(ev -> {
+            String text = newTodo.value.trim();
+            newTodo.value = "";
+            if (!text.isEmpty()) dispatchCustomEvent(root(), action, r -> r.add(text));
+        }));
 
-        EventType.bind(toggleAll, change, event -> {
-            for (TodoItemElement li : list.children()) {
-                li.asElement().classList.toggle("completed", toggleAll.checked);
-                li.toggle.checked = toggleAll.checked;
-            }
-            repository.completeAll(toggleAll.checked);
-            update();
-        });
+        rx.registerAttachObservable(fromEvent(toggleAll, change).doOnNext(ev -> {
+            dispatchCustomEvent(root(), action, r -> r.completeAll(toggleAll.checked));
+        }));
 
-        EventType.bind(clearCompleted, click, event -> {
-            Set<String> ids = new HashSet<>();
-            for (TodoItemElement li : list.children()) {
-                if (li.asElement().classList.contains("completed")) {
-                    String id = String.valueOf(li.asElement().dataset.get(TodoItemElement.ITEM));
-                    if (id != null) ids.add(id);
-                    li.removeFromParent();
-                }
-            }
-            repository.removeAll(ids);
-            update();
-        });
+        rx.registerAttachObservable(fromEvent(clearCompleted, click).doOnNext(ev -> {
+            dispatchCustomEvent(root(), action, r -> {
+                r.removeAll(r.items().stream().filter(i -> i.completed).map(i -> i.id).collect(toSet()));
+            });
+        }));
+    }
 
-        repository.onExternalModification().startWith(repository).subscribe(n -> {
-            list.clear();
-            for (TodoItem item : repository.items()) {
-                list.add(new TodoItemElement(this, repository, item));
-            }
-            update();
-        });
+    public void draw(Repository repository) {
+        list.clear();
+        // TODO removing  widgets and creating back is slow! fix with something like D3.selectAll for Widgets
+        repository.items().forEach(item -> list.add(new TodoItemWidget(item)));
+        update();
     }
 
     private Filter filter;
 
-    void filter(Filter filter) {
+    public void filter(Filter filter) {
         this.filter = filter;
         filterAll.classList.toggle("selected", filter == ALL);
         filterActive.classList.toggle("selected", filter == ACTIVE);
@@ -132,8 +117,8 @@ class ApplicationElement extends ElementoHtmlPanel<HTMLElement> {
 
         Elements.setVisible(main, size > 0);
         Elements.setVisible(footer, size > 0);
-        for (TodoItemElement li : list.children()) {
-            if (li.asElement().classList.contains("completed")) {
+        for (TodoItemWidget li : list.children()) {
+            if (li.root().classList.contains("completed")) {
                 completedCount++;
                 li.setVisible(filter != ACTIVE);
             } else {
