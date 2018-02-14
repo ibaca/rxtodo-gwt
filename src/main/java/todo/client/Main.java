@@ -1,6 +1,8 @@
 package todo.client;
 
+import static elemental2.core.JsObject.values;
 import static elemental2.dom.DomGlobal.window;
+import static java.util.Arrays.asList;
 
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
@@ -25,6 +27,8 @@ import jsinterop.annotations.JsType;
 import jsinterop.base.Js;
 import jsinterop.base.JsPropertyMap;
 import org.jboss.gwt.elemento.core.EventType;
+import org.pcollections.OrderedPSet;
+import org.pcollections.PSet;
 
 public class Main implements EntryPoint {
     public static final TodoConstants i18n = GWT.create(TodoConstants.class);
@@ -63,12 +67,16 @@ public class Main implements EntryPoint {
         SafeHtml items(@PluralCount int items);
     }
 
-    public static class Repository {
-        private static final String DEFAULT_KEY = "todos-elemento";
-        private final Storage storage = WebStorageWindow.of(DomGlobal.window).localStorage;
-        private final JsPropertyMap<TodoItem> items = Optional.ofNullable(storage.getItem(DEFAULT_KEY))
+    private static final String DEFAULT_KEY = "todos-elemento";
+    private static final Storage storage = WebStorageWindow.of(DomGlobal.window).localStorage;
+    private static JsPropertyMap<TodoItem> load() {
+        return Optional.ofNullable(storage.getItem(DEFAULT_KEY))
                 .map(json -> Js.<JsPropertyMap<TodoItem>>cast(Global.JSON.parse(json)))
                 .orElse(Js.cast(JsPropertyMap.of()));
+    }
+
+    public static class Repository {
+        private final JsPropertyMap<TodoItem> items = load();
 
         public TodoItem add(String text) {
             TodoItem item = new TodoItem();
@@ -117,6 +125,21 @@ public class Main implements EntryPoint {
             });
         }
     }
+
+
+    static class TodoAdd extends Flux.Action<TodoAdd> {
+        public static Flux.Type<TodoAdd> TYPE = Flux.Type.of("todo-add");
+        public String text;
+        public static TodoAdd of(String text) {
+            TodoAdd out = new TodoAdd();out.type = TYPE;out.text = text; return out;
+        }
+    }
+
+    Flux.FluxStore<PSet<TodoItem>> store = new Flux.FluxStore<PSet<TodoItem>>(
+            () -> (PSet<TodoItem>) OrderedPSet.from(asList(values(load()))),
+            (state, action) -> {
+                return state;
+            });
 
     @JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
     public static class TodoItem {
